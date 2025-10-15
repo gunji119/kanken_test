@@ -5,7 +5,8 @@
 <title>実験用｜関心度×満足度 診断</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <!-- Chart.js（CDN） -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+        onerror="window.__chartFailed=true"></script>
 <style>
   :root{--fg:#111;--bd:#e5e7eb;--mut:#6b7280}
   *{box-sizing:border-box}
@@ -30,64 +31,33 @@
   .table{width:100%;border-collapse:collapse;margin-top:8px}
   .table th,.table td{border:1px solid var(--bd);padding:6px 8px;text-align:center}
   .chart-wrap{min-height:360px}
+  .warn{background:#fff3cd;border:1px solid #ffe69c;color:#664d03;border-radius:10px;padding:10px;margin-top:10px;font-size:14px}
   .foot{margin-top:20px;font-size:12px;color:var(--mut)}
 </style>
 </head>
 <body>
 <h1>実験用</h1>
-<p class="muted">因子ごとの<strong>関心度</strong>と<strong>満足度</strong>を入力 → <strong>レーダーチャート</strong>で比較 → ギャップ大の因子に提案を表示（Node不要／GitHub Pages対応）。</p>
+<p class="muted">因子ごとの<strong>関心度</strong>と<strong>満足度</strong>を入力 → <strong>レーダーチャート</strong>で比較（※読み込み失敗時は表のみ）→ ギャップ大の因子に提案を表示。</p>
 
-<!-- 設定（編集しやすいよう上にまとめ） -->
 <script>
-  // 診断に使う因子（編集OK・順番もOK）
-  const FACTORS = [
-    "安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"
-  ];
-
-  // 因子ごとの提案サンプル（編集OK：増減してもOK）
+  // ===== 設定 =====
+  const FACTORS = ["安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"];
   const TIPS = {
-    "安全感":[
-      "定例の場・連絡頻度を明文化して予測可能性を上げる",
-      "NG/Doルールを一枚にまとめ、アクセス可能に"
-    ],
-    "自由度":[
-      "合意済みの“裁量範囲”を書き出して共有",
-      "同期作業を減らし非同期タスクへ置換"
-    ],
-    "承認":[
-      "週1で成果の可視化（スクショ/1分デモ）",
-      "『良かった点→要望→次回』の順でフィードバック"
-    ],
-    "挑戦":[
-      "小さな実験（1週間以内で検証）を積み重ねる",
-      "失敗の上限（時間/コスト）を先に決める"
-    ],
-    "共有時間":[
-      "ショートな儀式（朝5分・週30分）を固定化",
-      "雑談タイムは“テーマカード”で開始を容易に"
-    ],
-    "境界線":[
-      "応答時間帯・連絡手段・即レス期待の明文化",
-      "“断るテンプレ”を全員で持つ"
-    ],
-    "役割の明確さ":[
-      "RACI（責任/承認/協力/通知）を簡易で運用",
-      "月1で役割棚卸し・重複や過負担を調整"
-    ],
-    "遊び":[
-      "月1“無目的の会”を設定（ルールは『否定しない』だけ）",
-      "創作/ゲーム等の軽い共作をスプリントで実施"
-    ]
+    "安全感":["定例・連絡頻度を明文化して予測可能性UP","NG/Doルールを一枚にまとめて共有"],
+    "自由度":["裁量範囲を文章化して可視化","同期作業→非同期タスクへ置換"],
+    "承認":["週1で成果の可視化（スクショ/1分デモ）","『良かった→要望→次回』の順でFB"],
+    "挑戦":["1週間以内で検証できる小実験を積む","失敗の上限（時間/コスト）を先に決める"],
+    "共有時間":["朝5分/週30分の儀式を固定化","雑談はテーマカードで開始を容易に"],
+    "境界線":["応答時間帯・連絡手段・即レス期待を明文化","“断るテンプレ”を全員で持つ"],
+    "役割の明確さ":["RACIを簡易運用して責任範囲を明確化","月1で役割棚卸し"],
+    "遊び":["月1“無目的の会”を設定（否定しない）","創作/ゲーム等の軽い共作をスプリントで"]
   };
-
-  // “関心が高い＆ギャップ大”の判定しきい値（編集OK）
-  const THRESHOLDS = { interestedMin: 4, gapMin: 2 }; // 1〜5段階想定
+  const THRESHOLDS = { interestedMin: 4, gapMin: 2 }; // 1〜5段階
 </script>
 
-<!-- 入力フォーム -->
 <section id="form" class="card">
   <h2>1. 因子ごとの関心度×満足度を入力</h2>
-  <p class="muted">各因子について、1〜5のスライダーで<strong>関心度</strong>と<strong>現在の満足度</strong>を入力してください。</p>
+  <p class="muted">各因子について、1〜5のスライダーで入力してください。</p>
   <div id="factors" class="row"></div>
   <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
     <button id="analyze" class="btn">分析する</button>
@@ -95,12 +65,10 @@
   </div>
 </section>
 
-<!-- 結果 -->
 <section id="result" class="card hidden">
   <h2>2. レーダーチャートとギャップ分析</h2>
-  <div class="chart-wrap">
-    <canvas id="chart" aria-label="因子ごとの関心度と満足度の比較レーダーチャート" role="img"></canvas>
-  </div>
+  <div id="chartWarning" class="warn hidden">⚠️ チャートライブラリの読み込みに失敗したため、今回グラフは非表示です（表と提案は表示されます）。</div>
+  <div class="chart-wrap"><canvas id="chart" aria-label="レーダーチャート" role="img"></canvas></div>
 
   <h3 style="margin-top:16px">ギャップの大きい順</h3>
   <table class="table" id="gapTable">
@@ -116,7 +84,7 @@
   </div>
 </section>
 
-<p class="foot">© 実験用 / すべてブラウザ内で処理。保存が必要になったらGASやSupabase連携を追加可能。</p>
+<p class="foot">© 実験用（HTML+JSのみ）</p>
 
 <script>
   // ===== フォーム生成 =====
@@ -144,7 +112,6 @@
       </div>
     `;
     container.appendChild(el);
-    // 出力のリアルタイム反映
     ['interest','satisfaction'].forEach(k=>{
       const inp = el.querySelector(`#${id}-${k}`);
       const out = el.querySelector(`#${id}-${k}-out`);
@@ -163,7 +130,7 @@
     });
   });
 
-  // ===== 分析（レーダーチャート＋ギャップ） =====
+  // ===== 分析（防御付き） =====
   let chart;
   document.getElementById('analyze').addEventListener('click', () => {
     // 入力取得
@@ -174,50 +141,41 @@
       interest.push(i); satisfaction.push(s);
     });
 
-    // レーダーチャート描画
-    const ctx = document.getElementById('chart');
-    if (chart) chart.destroy();
-    chart = new Chart(ctx, {
-      type: 'radar',
-      data: {
-        labels: FACTORS,
-        datasets: [
-          {
-            label: '関心度',
-            data: interest,
-            fill: true,
-            pointRadius: 3,
-            backgroundColor: 'rgba(0,0,0,0.08)'
+    // 画面切替
+    document.getElementById('form').classList.add('hidden');
+    document.getElementById('result').classList.remove('hidden');
+
+    // Chart.js が使えない場合でも先へ進む
+    const chartFailed = window.__chartFailed || (typeof window.Chart === 'undefined');
+    if (chartFailed) {
+      document.getElementById('chartWarning').classList.remove('hidden');
+    } else {
+      try {
+        const ctx = document.getElementById('chart');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: FACTORS,
+            datasets: [
+              { label: '関心度', data: interest, fill: true, pointRadius: 3, backgroundColor: 'rgba(0,0,0,0.08)' },
+              { label: '満足度', data: satisfaction, fill: true, pointRadius: 3, backgroundColor: 'rgba(0,0,0,0.03)' }
+            ]
           },
-          {
-            label: '満足度',
-            data: satisfaction,
-            fill: true,
-            pointRadius: 3,
-            backgroundColor: 'rgba(0,0,0,0.03)'
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top' }, tooltip: { mode: 'nearest', intersect: false } },
+            scales: { r: { beginAtZero: true, min: 0, max: 5, ticks: { stepSize: 1 },
+                     angleLines: { color: 'rgba(0,0,0,0.08)' }, grid: { color: 'rgba(0,0,0,0.08)' },
+                     pointLabels: { font: { size: 11 } } } },
+            elements: { line: { borderWidth: 2 } }
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top' },
-          tooltip: { mode: 'nearest', intersect: false }
-        },
-        scales: {
-          r: {
-            beginAtZero: true,
-            min: 0, max: 5,
-            ticks: { stepSize: 1 },
-            angleLines: { color: 'rgba(0,0,0,0.08)' },
-            grid: { color: 'rgba(0,0,0,0.08)' },
-            pointLabels: { font: { size: 11 } }
-          }
-        },
-        elements: { line: { borderWidth: 2 } }
+        });
+      } catch (e) {
+        console.warn('Chart draw failed:', e);
+        document.getElementById('chartWarning').classList.remove('hidden');
       }
-    });
+    }
 
     // ギャップ計算（降順）
     const rows = FACTORS.map((name, i) => ({
@@ -245,20 +203,6 @@
         li.innerHTML = `<strong>${r.name}</strong>：<br>${tips.map(t=>`・${t}`).join('<br>')}`;
         tipsUL.appendChild(li);
       });
-
-    // 画面切替
-    document.getElementById('form').classList.add('hidden');
-    document.getElementById('result').classList.remove('hidden');
-
-    // ▼ 解析イベント例（必要ならコメント解除）
-    // window.plausible && window.plausible('Analyze', {props:{topGap: rows[0]?.name, topGapSize: rows[0]?.gap}});
-    // gtag && gtag('event','analyze',{ top_gap: rows[0]?.name, top_gap_size: rows[0]?.gap });
-
-    // ▼ 回答保存したい場合（NodeなしでGAS等にPOST）
-    // fetch('YOUR_GAS_ENDPOINT_URL', {
-    //   method:'POST', headers:{'Content-Type':'application/json'},
-    //   body: JSON.stringify({ rows, ts:new Date().toISOString() })
-    // }).catch(()=>{});
   });
 </script>
 </body>
