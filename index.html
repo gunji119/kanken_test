@@ -1,172 +1,253 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <title>実験用</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- ▼ アクセス解析（使うなら片方のコメントを外す） -->
-  <!-- Plausible
-  <script defer data-domain="YOUR-DOMAIN" src="https://plausible.io/js/script.js"></script> -->
-  <!-- Google Analytics(GA4)
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date()); gtag('config','G-XXXXXXX');</script> -->
-
-  <style>
-    :root{--fg:#111;--bd:#ddd;--mut:#6b7280}
-    *{box-sizing:border-box}
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-         color:var(--fg);max-width:720px;margin:40px auto;padding:0 16px;line-height:1.65}
-    h1{font-size:28px;margin:0 0 8px}
-    h2{font-size:20px;margin:0 0 8px}
-    .card{border:1px solid var(--bd);border-radius:14px;padding:16px;margin:14px 0;background:#fff}
-    .muted{color:var(--mut);font-size:14px}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    label.opt{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--bd);
-      border-radius:12px;cursor:pointer}
-    button{padding:.65rem 1rem;border:1px solid #333;border-radius:12px;background:#fff;cursor:pointer}
-    button[disabled]{opacity:.5;cursor:not-allowed}
-    .hidden{display:none}
-    .foot{margin-top:24px;font-size:12px;color:var(--mut)}
-  </style>
+<meta charset="utf-8" />
+<title>実験用｜因子の関心度×満足度 診断</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Chart.js（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root{--fg:#111;--bd:#e5e7eb;--mut:#6b7280}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       color:var(--fg);max-width:920px;margin:32px auto;padding:0 16px;line-height:1.65}
+  h1{font-size:28px;margin:0 0 4px}
+  h2{font-size:20px;margin:0 0 8px}
+  p.muted{color:var(--mut);margin:0 0 16px}
+  .card{border:1px solid var(--bd);border-radius:14px;padding:16px;margin:14px 0;background:#fff}
+  .row{display:grid;grid-template-columns:1fr;gap:12px}
+  .factor{border:1px solid var(--bd);border-radius:12px;padding:12px}
+  .fac-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+  .sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:640px){ .sliders{grid-template-columns:1fr} }
+  .r{display:flex;align-items:center;gap:8px}
+  input[type=range]{width:100%}
+  .btn{padding:.65rem 1rem;border:1px solid #111;border-radius:12px;background:#fff;cursor:pointer}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+  .hidden{display:none}
+  .tips li{margin-left:1rem}
+  .badge{font-size:12px;color:#fff;background:#111;border-radius:999px;padding:2px 8px}
+  .table{width:100%;border-collapse:collapse;margin-top:8px}
+  .table th,.table td{border:1px solid var(--bd);padding:6px 8px;text-align:center}
+  .foot{margin-top:20px;font-size:12px;color:var(--mut)}
+</style>
 </head>
 <body>
-  <h1>実験用</h1>
-  <p class="muted">最小構成の診断デモ（Nodeなし／GitHub Pages対応）</p>
+<h1>実験用</h1>
+<p class="muted">因子ごとの<strong>関心度</strong>と<strong>満足度</strong>を測って、ギャップ大の領域に対して提案を表示します（Node不要／GitHub Pages対応）。</p>
 
-  <!-- Start -->
-  <section id="start" class="card">
-    <h2>年代を選んで開始</h2>
-    <div class="row" role="group" aria-label="年代の選択">
-      <label class="opt"><input type="radio" name="age" value="18-24">18–24</label>
-      <label class="opt"><input type="radio" name="age" value="25-34">25–34</label>
-      <label class="opt"><input type="radio" name="age" value="35-44">35–44</label>
-      <label class="opt"><input type="radio" name="age" value="45plus">45+</label>
-    </div>
-    <div style="margin-top:12px">
-      <button id="go-quiz">診断をはじめる</button>
-    </div>
-  </section>
+<!-- 設定（編集しやすいよう上にまとめ） -->
+<script>
+  // 診断に使う因子（編集OK）
+  const FACTORS = [
+    "安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"
+  ];
 
-  <!-- Quiz -->
-  <section id="quiz" class="card hidden" aria-live="polite">
-    <h2>クイズ（ダミー）</h2>
-    <p>初対面の集まりで、あなたが一番やりがちな行動は？</p>
-    <div class="row">
-      <label class="opt"><input type="radio" name="q1" value="avoid">様子見して全体を観察する</label>
-      <label class="opt"><input type="radio" name="q1" value="secure">すぐに誰かに話しかける</label>
-      <label class="opt"><input type="radio" name="q1" value="depend">特定の人にべったりつく</label>
-      <label class="opt"><input type="radio" name="q1" value="control">場を回そうとして主導する</label>
-    </div>
-    <div style="margin-top:12px">
-      <button id="see-result">結果を見る（仮）</button>
-    </div>
-  </section>
+  // 因子ごとの知見サンプル（編集OK）
+  const TIPS = {
+    "安全感":[
+      "定例の場・連絡頻度を明文化して予測可能性を上げる",
+      "NG/Doルールを一枚にまとめ、アクセス可能に"
+    ],
+    "自由度":[
+      "合意済みの“裁量範囲”を書き出して共有",
+      "同期作業を減らし非同期タスクへ置換"
+    ],
+    "承認":[
+      "週1で成果の可視化（スクショ/1分デモ）",
+      "『良かった点→要望→次回』の順でフィードバック"
+    ],
+    "挑戦":[
+      "小さな実験（1週間以内で検証）を積み重ねる",
+      "失敗の上限（時間/コスト）を先に決める"
+    ],
+    "共有時間":[
+      "ショートな儀式（朝5分・週30分）を固定化",
+      "雑談タイムは“テーマカード”で開始を容易に"
+    ],
+    "境界線":[
+      "応答時間帯・連絡手段・即レス期待の明文化",
+      "“断るテンプレ”を全員で持つ"
+    ],
+    "役割の明確さ":[
+      "RACI（責任/承認/協力/通知）を簡易で運用",
+      "月1で役割棚卸し・重複や過負担を調整"
+    ],
+    "遊び":[
+      "月1“無目的の会”を設定（ルールは『否定しない』だけ）",
+      "創作/ゲーム等の軽い共作をスプリントで実施"
+    ]
+  };
 
-  <!-- Result -->
-  <section id="result" class="card hidden">
-    <h2>結果</h2>
-    <p id="result-title" style="font-weight:600;margin:.25rem 0"></p>
-    <p id="result-body"></p>
-    <div style="margin-top:12px" class="row">
-      <button onclick="location.reload()">最初に戻る</button>
-      <button id="share">結果をシェア</button>
-    </div>
-  </section>
+  // “関心が高い＆満足が低い”の判定しきい値（編集OK）
+  const THRESHOLDS = { interestedMin: 4, gapMin: 2 }; // 5段階想定
+</script>
 
-  <p class="foot">© 実験用 / このページはHTML+JSのみで動作しています（GitHub Pages想定）。</p>
+<!-- 診断フォーム -->
+<section id="form" class="card">
+  <h2>1. 因子ごとの関心度×満足度を入力</h2>
+  <p class="muted">各因子について、1〜5のスライダーで<strong>関心度</strong>と<strong>現在の満足度</strong>を入力してください。</p>
+  <div id="factors" class="row"></div>
+  <div style="margin-top:12px">
+    <button id="analyze" class="btn">分析する</button>
+  </div>
+</section>
+
+<!-- 結果 -->
+<section id="result" class="card hidden">
+  <h2>2. チャートとギャップ分析</h2>
+  <canvas id="chart" height="220" aria-label="因子ごとの関心度と満足度の比較グラフ" role="img"></canvas>
+
+  <h3 style="margin-top:16px">ギャップの大きい順</h3>
+  <table class="table" id="gapTable">
+    <thead><tr><th>因子</th><th>関心</th><th>満足</th><th>差(関心-満足)</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h3 style="margin-top:16px">提案（関心高いのに満足が低い因子） <span class="badge">重点</span></h3>
+  <ul class="tips" id="tipsList"></ul>
+
+  <div style="margin-top:12px" class="row" >
+    <button class="btn" onclick="location.reload()">最初に戻る</button>
+  </div>
+</section>
+
+<p class="foot">© 実験用 / ブラウザ内でのみ処理。保存が必要なら後でGASやSupabaseを連携可能です。</p>
 
 <script>
-  // --- 状態管理 ---
-  const $ = (sel) => document.querySelector(sel);
-  const show = (id) => (document.getElementById(id).classList.remove('hidden'));
-  const hide = (id) => (document.getElementById(id).classList.add('hidden'));
-
-  let state = { age:null, answers:{}, typeId:null };
-
-  // 年代 → クイズへ
-  $('#go-quiz').addEventListener('click', () => {
-    const chosen = document.querySelector('input[name="age"]:checked');
-    if(!chosen){ alert('年代を選んでね'); return; }
-    state.age = chosen.value;
-    hide('start'); show('quiz');
-    // 解析イベント（任意）
-    // window.plausible && window.plausible('Start', {props:{age: state.age}});
-    // gtag && gtag('event','start',{age: state.age});
+  // フォームを生成
+  const container = document.getElementById('factors');
+  FACTORS.forEach((name, idx) => {
+    const id = `f${idx}`;
+    const el = document.createElement('div');
+    el.className = 'factor';
+    el.innerHTML = `
+      <div class="fac-head">
+        <strong>${name}</strong>
+        <span class="muted">1〜5（高いほど強い）</span>
+      </div>
+      <div class="sliders">
+        <label class="r" for="${id}-interest">
+          <span style="min-width:5em">関心度</span>
+          <input id="${id}-interest" type="range" min="1" max="5" step="1" value="3" />
+          <output id="${id}-interest-out">3</output>
+        </label>
+        <label class="r" for="${id}-satisfaction">
+          <span style="min-width:5em">満足度</span>
+          <input id="${id}-satisfaction" type="range" min="1" max="5" step="1" value="3" />
+          <output id="${id}-satisfaction-out">3</output>
+        </label>
+      </div>
+    `;
+    container.appendChild(el);
+    // 出力値の反映
+    ['interest','satisfaction'].forEach(k=>{
+      const inp = el.querySelector(`#${id}-${k}`);
+      const out = el.querySelector(`#${id}-${k}-out`);
+      inp.addEventListener('input', ()=>{ out.textContent = inp.value; });
+    });
   });
 
-  // クイズ回答 → 仮結果
-  $('#see-result').addEventListener('click', async() => {
-    const q1 = document.querySelector('input[name="q1"]:checked')?.value;
-    if(!q1){ alert('回答してね'); return; }
-    state.answers.q1 = q1;
+  // 分析
+  let chart;
+  document.getElementById('analyze').addEventListener('click', () => {
+    // 入力取得
+    const interest = [], satisfaction = [];
+    FACTORS.forEach((_, idx) => {
+      const i = Number(document.getElementById(`f${idx}-interest`).value);
+      const s = Number(document.getElementById(`f${idx}-satisfaction`).value);
+      interest.push(i); satisfaction.push(s);
+    });
 
-    // 仮ロジック（ここは後で差し替え）：secureならtype-secure、他は値に合わせる
-    state.typeId = (q1 === 'secure') ? 'type-secure' : `type-${q1}`;
+    <!-- チャート描画（レーダー） -->
+<script>
+  // ...（前のコードそのまま）...
 
-    // 年代別バリアント（例）
-    const profiles = {
-      'type-secure': {
-        name: '安心型（Secure）',
-        base: '自他への基本的信頼があり、距離調整がしやすいタイプ。',
-        v: {
-          '18-24': '小さな挑戦を短サイクルで回すと◎。',
-          '25-34': '役割の広がりを見越して境界線を可視化。',
-          '35-44': '棚卸しと委譲の設計が鍵。',
-          '45plus': 'メンタリングで強みが循環。'
+  let chart;
+  document.getElementById('analyze').addEventListener('click', () => {
+    // 入力取得
+    const interest = [], satisfaction = [];
+    FACTORS.forEach((_, idx) => {
+      const i = Number(document.getElementById(`f${idx}-interest`).value);
+      const s = Number(document.getElementById(`f${idx}-satisfaction`).value);
+      interest.push(i); satisfaction.push(s);
+    });
+
+    // レーダーチャート描画
+    const ctx = document.getElementById('chart');
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: FACTORS,
+        datasets: [
+          {
+            label: '関心度',
+            data: interest,
+            fill: true,
+            pointRadius: 3,
+            // 好みでα値だけ指定（色はデフォルトに任せてOK）
+            backgroundColor: 'rgba(0,0,0,0.08)'
+          },
+          {
+            label: '満足度',
+            data: satisfaction,
+            fill: true,
+            pointRadius: 3,
+            backgroundColor: 'rgba(0,0,0,0.03)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false, // 親コンテナで高さを管理
+        plugins: {
+          legend: { position: 'top' },
+          tooltip: { mode: 'nearest', intersect: false }
+        },
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0, max: 5, // 1〜5のレンジに合わせる
+            ticks: { stepSize: 1 },
+            angleLines: { color: 'rgba(0,0,0,0.08)' },
+            grid: { color: 'rgba(0,0,0,0.08)' },
+            pointLabels: { font: { size: 11 } }
+          }
+        },
+        elements: {
+          line: { borderWidth: 2 }
         }
-      },
-      'type-avoid': {
-        name: '回避型（Avoidant）',
-        base: '心理的距離の確保が得意。過干渉に敏感。',
-        v: { '25-34': '非同期コラボを増やして負荷を平準化。' }
-      },
-      'type-depend': {
-        name: '依存型（Dependent）',
-        base: '承認や支えを求めがち。安心の土台づくりが鍵。',
-        v: { '18-24': '成功確率の高い小タスクを積み上げよう。' }
-      },
-      'type-control': {
-        name: '支配型（Controlling）',
-        base: '主導しがち。秩序が安心の源になりやすい。',
-        v: { '45plus': '意思決定基準を言語化し、後進へ継承。' }
       }
-    };
+    });
 
-    const p = profiles[state.typeId] || {name:'仮タイプ', base:'本文は後で入れます', v:{}};
-    const extra = (state.age && p.v[state.age]) ? ' ' + p.v[state.age] : '';
-    document.getElementById('result-title').textContent = `${p.name}（年代: ${state.age}）`;
-    document.getElementById('result-body').textContent = p.base + extra;
+    // —— ここから先（ギャップ計算・テーブル・提案・画面切替・解析/保存）は前のまま ——
+    const rows = FACTORS.map((name, i) => ({
+      name, interest: interest[i], satisfaction: satisfaction[i], gap: (interest[i]-satisfaction[i])
+    })).sort((a,b)=> b.gap - a.gap);
 
-    hide('quiz'); show('result');
+    const tbody = document.querySelector('#gapTable tbody');
+    tbody.innerHTML = '';
+    rows.forEach(r=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="text-align:left">${r.name}</td>
+                      <td>${r.interest}</td><td>${r.satisfaction}</td><td>${r.gap}</td>`;
+      tbody.appendChild(tr);
+    });
 
-    // 解析イベント（任意）
-    // window.plausible && window.plausible('Result', {props:{type: state.typeId, age: state.age}});
-    // gtag && gtag('event','result',{type: state.typeId, age: state.age});
+    const tipsUL = document.getElementById('tipsList');
+    tipsUL.innerHTML = '';
+    rows
+      .filter(r => r.interest >= THRESHOLDS.interestedMin && r.gap >= THRESHOLDS.gapMin)
+      .forEach(r => {
+        const li = document.createElement('li');
+        const tips = TIPS[r.name] || ["（提案文を追加してください）"];
+        li.innerHTML = `<strong>${r.name}</strong>：<br>${tips.map(t=>`・${t}`).join('<br>')}`;
+        tipsUL.appendChild(li);
+      });
 
-    // ▼ 回答保存したい場合（Google Apps Script などのエンドポイントにPOST）
-    // try{
-    //   await fetch('YOUR_GAS_ENDPOINT_URL', {
-    //     method:'POST',
-    //     headers:{'Content-Type':'application/json'},
-    //     body: JSON.stringify({
-    //       age: state.age,
-    //       answers: state.answers,
-    //       type: state.typeId,
-    //       ts: new Date().toISOString()
-    //     })
-    //   });
-    // }catch(e){ console.warn('save failed', e); }
-  });
-
-  // シェア（対応ブラウザのみ）
-  document.getElementById('share').addEventListener('click', async () => {
-    const title = '実験用 診断結果';
-    const text = `${$('#result-title').textContent}`;
-    const url = location.href;
-    if (navigator.share) { try { await navigator.share({ title, text, url }); } catch{} }
-    else { alert('共有: ' + text); }
+    document.getElementById('form').classList.add('hidden');
+    document.getElementById('result').classList.remove('hidden');
   });
 </script>
 </body>
