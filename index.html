@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<title>実験用｜因子の関心度×満足度 診断</title>
+<title>実験用｜関心度×満足度 診断</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <!-- Chart.js（CDN） -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -10,7 +10,7 @@
   :root{--fg:#111;--bd:#e5e7eb;--mut:#6b7280}
   *{box-sizing:border-box}
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-       color:var(--fg);max-width:920px;margin:32px auto;padding:0 16px;line-height:1.65}
+       color:var(--fg);max-width:960px;margin:32px auto;padding:0 16px;line-height:1.65;background:#fff}
   h1{font-size:28px;margin:0 0 4px}
   h2{font-size:20px;margin:0 0 8px}
   p.muted{color:var(--mut);margin:0 0 16px}
@@ -29,21 +29,22 @@
   .badge{font-size:12px;color:#fff;background:#111;border-radius:999px;padding:2px 8px}
   .table{width:100%;border-collapse:collapse;margin-top:8px}
   .table th,.table td{border:1px solid var(--bd);padding:6px 8px;text-align:center}
+  .chart-wrap{min-height:360px}
   .foot{margin-top:20px;font-size:12px;color:var(--mut)}
 </style>
 </head>
 <body>
 <h1>実験用</h1>
-<p class="muted">因子ごとの<strong>関心度</strong>と<strong>満足度</strong>を測って、ギャップ大の領域に対して提案を表示します（Node不要／GitHub Pages対応）。</p>
+<p class="muted">因子ごとの<strong>関心度</strong>と<strong>満足度</strong>を入力 → <strong>レーダーチャート</strong>で比較 → ギャップ大の因子に提案を表示（Node不要／GitHub Pages対応）。</p>
 
 <!-- 設定（編集しやすいよう上にまとめ） -->
 <script>
-  // 診断に使う因子（編集OK）
+  // 診断に使う因子（編集OK・順番もOK）
   const FACTORS = [
     "安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"
   ];
 
-  // 因子ごとの知見サンプル（編集OK）
+  // 因子ごとの提案サンプル（編集OK：増減してもOK）
   const TIPS = {
     "安全感":[
       "定例の場・連絡頻度を明文化して予測可能性を上げる",
@@ -79,24 +80,27 @@
     ]
   };
 
-  // “関心が高い＆満足が低い”の判定しきい値（編集OK）
-  const THRESHOLDS = { interestedMin: 4, gapMin: 2 }; // 5段階想定
+  // “関心が高い＆ギャップ大”の判定しきい値（編集OK）
+  const THRESHOLDS = { interestedMin: 4, gapMin: 2 }; // 1〜5段階想定
 </script>
 
-<!-- 診断フォーム -->
+<!-- 入力フォーム -->
 <section id="form" class="card">
   <h2>1. 因子ごとの関心度×満足度を入力</h2>
   <p class="muted">各因子について、1〜5のスライダーで<strong>関心度</strong>と<strong>現在の満足度</strong>を入力してください。</p>
   <div id="factors" class="row"></div>
-  <div style="margin-top:12px">
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
     <button id="analyze" class="btn">分析する</button>
+    <button id="reset" class="btn" type="button">リセット</button>
   </div>
 </section>
 
 <!-- 結果 -->
 <section id="result" class="card hidden">
-  <h2>2. チャートとギャップ分析</h2>
-  <canvas id="chart" height="220" aria-label="因子ごとの関心度と満足度の比較グラフ" role="img"></canvas>
+  <h2>2. レーダーチャートとギャップ分析</h2>
+  <div class="chart-wrap">
+    <canvas id="chart" aria-label="因子ごとの関心度と満足度の比較レーダーチャート" role="img"></canvas>
+  </div>
 
   <h3 style="margin-top:16px">ギャップの大きい順</h3>
   <table class="table" id="gapTable">
@@ -107,15 +111,15 @@
   <h3 style="margin-top:16px">提案（関心高いのに満足が低い因子） <span class="badge">重点</span></h3>
   <ul class="tips" id="tipsList"></ul>
 
-  <div style="margin-top:12px" class="row" >
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn" onclick="location.reload()">最初に戻る</button>
   </div>
 </section>
 
-<p class="foot">© 実験用 / ブラウザ内でのみ処理。保存が必要なら後でGASやSupabaseを連携可能です。</p>
+<p class="foot">© 実験用 / すべてブラウザ内で処理。保存が必要になったらGASやSupabase連携を追加可能。</p>
 
 <script>
-  // フォームを生成
+  // ===== フォーム生成 =====
   const container = document.getElementById('factors');
   FACTORS.forEach((name, idx) => {
     const id = `f${idx}`;
@@ -140,7 +144,7 @@
       </div>
     `;
     container.appendChild(el);
-    // 出力値の反映
+    // 出力のリアルタイム反映
     ['interest','satisfaction'].forEach(k=>{
       const inp = el.querySelector(`#${id}-${k}`);
       const out = el.querySelector(`#${id}-${k}-out`);
@@ -148,21 +152,18 @@
     });
   });
 
-  // 分析
-  let chart;
-  document.getElementById('analyze').addEventListener('click', () => {
-    // 入力取得
-    const interest = [], satisfaction = [];
-    FACTORS.forEach((_, idx) => {
-      const i = Number(document.getElementById(`f${idx}-interest`).value);
-      const s = Number(document.getElementById(`f${idx}-satisfaction`).value);
-      interest.push(i); satisfaction.push(s);
+  // リセット
+  document.getElementById('reset').addEventListener('click', ()=>{
+    FACTORS.forEach((_, idx)=>{
+      const i = document.getElementById(`f${idx}-interest`);
+      const s = document.getElementById(`f${idx}-satisfaction`);
+      const io = document.getElementById(`f${idx}-interest-out`);
+      const so = document.getElementById(`f${idx}-satisfaction-out`);
+      i.value = s.value = 3; io.textContent = so.textContent = '3';
     });
+  });
 
-    <!-- チャート描画（レーダー） -->
-<script>
-  // ...（前のコードそのまま）...
-
+  // ===== 分析（レーダーチャート＋ギャップ） =====
   let chart;
   document.getElementById('analyze').addEventListener('click', () => {
     // 入力取得
@@ -186,7 +187,6 @@
             data: interest,
             fill: true,
             pointRadius: 3,
-            // 好みでα値だけ指定（色はデフォルトに任せてOK）
             backgroundColor: 'rgba(0,0,0,0.08)'
           },
           {
@@ -200,7 +200,7 @@
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false, // 親コンテナで高さを管理
+        maintainAspectRatio: false,
         plugins: {
           legend: { position: 'top' },
           tooltip: { mode: 'nearest', intersect: false }
@@ -208,24 +208,23 @@
         scales: {
           r: {
             beginAtZero: true,
-            min: 0, max: 5, // 1〜5のレンジに合わせる
+            min: 0, max: 5,
             ticks: { stepSize: 1 },
             angleLines: { color: 'rgba(0,0,0,0.08)' },
             grid: { color: 'rgba(0,0,0,0.08)' },
             pointLabels: { font: { size: 11 } }
           }
         },
-        elements: {
-          line: { borderWidth: 2 }
-        }
+        elements: { line: { borderWidth: 2 } }
       }
     });
 
-    // —— ここから先（ギャップ計算・テーブル・提案・画面切替・解析/保存）は前のまま ——
+    // ギャップ計算（降順）
     const rows = FACTORS.map((name, i) => ({
       name, interest: interest[i], satisfaction: satisfaction[i], gap: (interest[i]-satisfaction[i])
     })).sort((a,b)=> b.gap - a.gap);
 
+    // テーブル反映
     const tbody = document.querySelector('#gapTable tbody');
     tbody.innerHTML = '';
     rows.forEach(r=>{
@@ -235,19 +234,31 @@
       tbody.appendChild(tr);
     });
 
+    // 提案（関心高い & ギャップ大）
     const tipsUL = document.getElementById('tipsList');
     tipsUL.innerHTML = '';
     rows
       .filter(r => r.interest >= THRESHOLDS.interestedMin && r.gap >= THRESHOLDS.gapMin)
       .forEach(r => {
         const li = document.createElement('li');
-        const tips = TIPS[r.name] || ["（提案文を追加してください）"];
+        const tips = TIPS[r.name] || ["（この因子の提案文を追加してください）"];
         li.innerHTML = `<strong>${r.name}</strong>：<br>${tips.map(t=>`・${t}`).join('<br>')}`;
         tipsUL.appendChild(li);
       });
 
+    // 画面切替
     document.getElementById('form').classList.add('hidden');
     document.getElementById('result').classList.remove('hidden');
+
+    // ▼ 解析イベント例（必要ならコメント解除）
+    // window.plausible && window.plausible('Analyze', {props:{topGap: rows[0]?.name, topGapSize: rows[0]?.gap}});
+    // gtag && gtag('event','analyze',{ top_gap: rows[0]?.name, top_gap_size: rows[0]?.gap });
+
+    // ▼ 回答保存したい場合（NodeなしでGAS等にPOST）
+    // fetch('YOUR_GAS_ENDPOINT_URL', {
+    //   method:'POST', headers:{'Content-Type':'application/json'},
+    //   body: JSON.stringify({ rows, ts:new Date().toISOString() })
+    // }).catch(()=>{});
   });
 </script>
 </body>
