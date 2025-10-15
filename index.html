@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<title>実験用｜MBTI風診断＋レーダーチャート</title>
+<title>単身世帯の幸福度診断｜関心×満足レーダー</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
@@ -43,7 +43,8 @@ ul{padding-left:20px}
 </style>
 </head>
 <body>
-<h1>実験用｜関心×満足 MBTI風診断</h1>
+<h1>単身世帯の幸福度診断</h1>
+<p>あなたの「関心」と「満足」を比べて、自分らしい幸福の形を見つけましょう。</p>
 
 <section id="quiz" class="card">
   <h2 id="qnum"></h2>
@@ -55,7 +56,7 @@ ul{padding-left:20px}
 <section id="result" class="card hidden">
   <h2>診断結果</h2>
   <div class="chart-wrap"><canvas id="chart"></canvas></div>
-  <h3>ギャップの大きい因子</h3>
+  <h3>因子ごとの平均値</h3>
   <table class="table">
     <thead><tr><th>因子</th><th>関心</th><th>満足</th><th>差</th></tr></thead>
     <tbody id="tbl"></tbody>
@@ -66,35 +67,44 @@ ul{padding-left:20px}
 </section>
 
 <script>
-// === 因子と仮質問 ===
-const FACTORS = ["安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"];
-const QUESTIONS = [
-  {text:"人との予定が埋まっていると安心する",factor:"安全感",type:"関心"},
-  {text:"誰かが自分を気にかけてくれると落ち着く",factor:"安全感",type:"満足"},
-  {text:"自分のペースで進められる環境が好き",factor:"自由度",type:"関心"},
-  {text:"予定やルールが厳しくても気にならない",factor:"自由度",type:"満足"},
-  {text:"褒められるとやる気が出る",factor:"承認",type:"関心"},
-  {text:"最近周囲から十分に評価されている",factor:"承認",type:"満足"},
-  {text:"新しいことに挑戦するのが好き",factor:"挑戦",type:"関心"},
-  {text:"最近わくわくすることに取り組めている",factor:"挑戦",type:"満足"},
-  {text:"人と同じ時間を共有すると安心する",factor:"共有時間",type:"関心"},
-  {text:"最近、信頼できる人と時間を共有できている",factor:"共有時間",type:"満足"},
-  {text:"人との距離感を大事にしたい",factor:"境界線",type:"関心"},
-  {text:"最近、自分の時間をしっかり守れている",factor:"境界線",type:"満足"},
-  {text:"自分の役割がはっきりしていると動きやすい",factor:"役割の明確さ",type:"関心"},
-  {text:"今の関係や環境で役割が曖昧だと感じる",factor:"役割の明確さ",type:"満足"},
-  {text:"遊びや余白の時間がないと息が詰まる",factor:"遊び",type:"関心"},
-  {text:"最近、気軽に遊ぶ時間をとれている",factor:"遊び",type:"満足"}
+// === 因子と質問（単身世帯の幸福度テーマ） ===
+const FACTORS = [
+  "賃金",
+  "働き方の裁量",
+  "財産管理",
+  "安心",
+  "食生活",
+  "住居への満足"
 ];
+
+const QUESTIONS = [
+  // 賃金
+  {text:"収入は生活を支える上でとても重要だと思う",factor:"賃金",type:"関心"},
+  {text:"現在の収入におおむね満足している",factor:"賃金",type:"満足"},
+  // 働き方の裁量
+  {text:"自分で仕事のペースや方法を決められることを重視している",factor:"働き方の裁量",type:"関心"},
+  {text:"今の働き方には十分な自由があると感じる",factor:"働き方の裁量",type:"満足"},
+  // 財産管理
+  {text:"お金や資産をきちんと管理できていると安心できる",factor:"財産管理",type:"関心"},
+  {text:"現在、自分の収支や貯蓄をきちんと把握できている",factor:"財産管理",type:"満足"},
+  // 安心
+  {text:"病気や失業などのリスクに備えることを大切にしている",factor:"安心",type:"関心"},
+  {text:"いざという時に頼れる制度や人がいると感じている",factor:"安心",type:"満足"},
+  // 食生活
+  {text:"毎日の食事の質は幸福に直結すると感じる",factor:"食生活",type:"関心"},
+  {text:"最近の食生活には満足している",factor:"食生活",type:"満足"},
+  // 住居
+  {text:"自分に合った住環境を持つことは大切だと思う",factor:"住居への満足",type:"関心"},
+  {text:"今の住まいに満足している",factor:"住居への満足",type:"満足"}
+];
+
 const TIPS = {
-  "安全感":["予測できる予定づくり","関係性ルールを明文化"],
-  "自由度":["裁量を可視化","非同期作業化"],
-  "承認":["週1で成果可視化","FBフォーマット化"],
-  "挑戦":["小実験を積み重ね","失敗の上限を設定"],
-  "共有時間":["短い儀式を定例化","雑談テーマカード"],
-  "境界線":["即レス期待を明文化","断るテンプレを共有"],
-  "役割の明確さ":["RACIで範囲整理","月1棚卸し"],
-  "遊び":["無目的の会","共作スプリント"]
+  "賃金":["副収入やスキル投資で長期的に底上げを検討","生活コストを見直し、満足を再定義"],
+  "働き方の裁量":["上司・同僚と裁量範囲を共有し、無理のない自由を設計","働き方を記録してストレスポイントを可視化"],
+  "財産管理":["自動積立や家計アプリで管理を習慣化","月1の振り返りで安心感を維持"],
+  "安心":["頼れる人や制度のリスト化","健康・貯蓄・保険のいずれかを優先して整備"],
+  "食生活":["平日と休日で無理なく続く食習慣を設計","冷凍・宅食サービスで自炊の負担を軽減"],
+  "住居への満足":["小さな模様替えや掃除で『居心地の良さ』をアップ","家賃・立地・快適度のバランスを再検討"]
 };
 
 // === 診断ロジック ===
@@ -151,8 +161,8 @@ function analyze(){
           data: interest,
           fill: true,
           pointRadius: 3,
-          backgroundColor: "rgba(0, 0, 0, 0.12)",
-          borderColor: "rgba(0, 0, 0, 0.6)",
+          backgroundColor: "rgba(255, 205, 86, 0.3)", // 黄色
+          borderColor: "rgba(255, 205, 86, 1)",
           borderWidth: 2
         },
         {
@@ -160,8 +170,8 @@ function analyze(){
           data: satisfaction,
           fill: true,
           pointRadius: 3,
-          backgroundColor: "rgba(0, 0, 0, 0.05)",
-          borderColor: "rgba(0, 0, 0, 0.3)",
+          backgroundColor: "rgba(54, 162, 235, 0.25)", // 青
+          borderColor: "rgba(54, 162, 235, 1)",
           borderWidth: 2
         }
       ]
