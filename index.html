@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>実験用</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- ▼ アクセス解析（使うなら片方のコメントを外す） -->
+  <!-- Plausible
+  <script defer data-domain="YOUR-DOMAIN" src="https://plausible.io/js/script.js"></script> -->
+  <!-- Google Analytics(GA4)
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date()); gtag('config','G-XXXXXXX');</script> -->
+
+  <style>
+    :root{--fg:#111;--bd:#ddd;--mut:#6b7280}
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+         color:var(--fg);max-width:720px;margin:40px auto;padding:0 16px;line-height:1.65}
+    h1{font-size:28px;margin:0 0 8px}
+    h2{font-size:20px;margin:0 0 8px}
+    .card{border:1px solid var(--bd);border-radius:14px;padding:16px;margin:14px 0;background:#fff}
+    .muted{color:var(--mut);font-size:14px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    label.opt{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--bd);
+      border-radius:12px;cursor:pointer}
+    button{padding:.65rem 1rem;border:1px solid #333;border-radius:12px;background:#fff;cursor:pointer}
+    button[disabled]{opacity:.5;cursor:not-allowed}
+    .hidden{display:none}
+    .foot{margin-top:24px;font-size:12px;color:var(--mut)}
+  </style>
+</head>
+<body>
+  <h1>実験用</h1>
+  <p class="muted">最小構成の診断デモ（Nodeなし／GitHub Pages対応）</p>
+
+  <!-- Start -->
+  <section id="start" class="card">
+    <h2>年代を選んで開始</h2>
+    <div class="row" role="group" aria-label="年代の選択">
+      <label class="opt"><input type="radio" name="age" value="18-24">18–24</label>
+      <label class="opt"><input type="radio" name="age" value="25-34">25–34</label>
+      <label class="opt"><input type="radio" name="age" value="35-44">35–44</label>
+      <label class="opt"><input type="radio" name="age" value="45plus">45+</label>
+    </div>
+    <div style="margin-top:12px">
+      <button id="go-quiz">診断をはじめる</button>
+    </div>
+  </section>
+
+  <!-- Quiz -->
+  <section id="quiz" class="card hidden" aria-live="polite">
+    <h2>クイズ（ダミー）</h2>
+    <p>初対面の集まりで、あなたが一番やりがちな行動は？</p>
+    <div class="row">
+      <label class="opt"><input type="radio" name="q1" value="avoid">様子見して全体を観察する</label>
+      <label class="opt"><input type="radio" name="q1" value="secure">すぐに誰かに話しかける</label>
+      <label class="opt"><input type="radio" name="q1" value="depend">特定の人にべったりつく</label>
+      <label class="opt"><input type="radio" name="q1" value="control">場を回そうとして主導する</label>
+    </div>
+    <div style="margin-top:12px">
+      <button id="see-result">結果を見る（仮）</button>
+    </div>
+  </section>
+
+  <!-- Result -->
+  <section id="result" class="card hidden">
+    <h2>結果</h2>
+    <p id="result-title" style="font-weight:600;margin:.25rem 0"></p>
+    <p id="result-body"></p>
+    <div style="margin-top:12px" class="row">
+      <button onclick="location.reload()">最初に戻る</button>
+      <button id="share">結果をシェア</button>
+    </div>
+  </section>
+
+  <p class="foot">© 実験用 / このページはHTML+JSのみで動作しています（GitHub Pages想定）。</p>
+
+<script>
+  // --- 状態管理 ---
+  const $ = (sel) => document.querySelector(sel);
+  const show = (id) => (document.getElementById(id).classList.remove('hidden'));
+  const hide = (id) => (document.getElementById(id).classList.add('hidden'));
+
+  let state = { age:null, answers:{}, typeId:null };
+
+  // 年代 → クイズへ
+  $('#go-quiz').addEventListener('click', () => {
+    const chosen = document.querySelector('input[name="age"]:checked');
+    if(!chosen){ alert('年代を選んでね'); return; }
+    state.age = chosen.value;
+    hide('start'); show('quiz');
+    // 解析イベント（任意）
+    // window.plausible && window.plausible('Start', {props:{age: state.age}});
+    // gtag && gtag('event','start',{age: state.age});
+  });
+
+  // クイズ回答 → 仮結果
+  $('#see-result').addEventListener('click', async() => {
+    const q1 = document.querySelector('input[name="q1"]:checked')?.value;
+    if(!q1){ alert('回答してね'); return; }
+    state.answers.q1 = q1;
+
+    // 仮ロジック（ここは後で差し替え）：secureならtype-secure、他は値に合わせる
+    state.typeId = (q1 === 'secure') ? 'type-secure' : `type-${q1}`;
+
+    // 年代別バリアント（例）
+    const profiles = {
+      'type-secure': {
+        name: '安心型（Secure）',
+        base: '自他への基本的信頼があり、距離調整がしやすいタイプ。',
+        v: {
+          '18-24': '小さな挑戦を短サイクルで回すと◎。',
+          '25-34': '役割の広がりを見越して境界線を可視化。',
+          '35-44': '棚卸しと委譲の設計が鍵。',
+          '45plus': 'メンタリングで強みが循環。'
+        }
+      },
+      'type-avoid': {
+        name: '回避型（Avoidant）',
+        base: '心理的距離の確保が得意。過干渉に敏感。',
+        v: { '25-34': '非同期コラボを増やして負荷を平準化。' }
+      },
+      'type-depend': {
+        name: '依存型（Dependent）',
+        base: '承認や支えを求めがち。安心の土台づくりが鍵。',
+        v: { '18-24': '成功確率の高い小タスクを積み上げよう。' }
+      },
+      'type-control': {
+        name: '支配型（Controlling）',
+        base: '主導しがち。秩序が安心の源になりやすい。',
+        v: { '45plus': '意思決定基準を言語化し、後進へ継承。' }
+      }
+    };
+
+    const p = profiles[state.typeId] || {name:'仮タイプ', base:'本文は後で入れます', v:{}};
+    const extra = (state.age && p.v[state.age]) ? ' ' + p.v[state.age] : '';
+    document.getElementById('result-title').textContent = `${p.name}（年代: ${state.age}）`;
+    document.getElementById('result-body').textContent = p.base + extra;
+
+    hide('quiz'); show('result');
+
+    // 解析イベント（任意）
+    // window.plausible && window.plausible('Result', {props:{type: state.typeId, age: state.age}});
+    // gtag && gtag('event','result',{type: state.typeId, age: state.age});
+
+    // ▼ 回答保存したい場合（Google Apps Script などのエンドポイントにPOST）
+    // try{
+    //   await fetch('YOUR_GAS_ENDPOINT_URL', {
+    //     method:'POST',
+    //     headers:{'Content-Type':'application/json'},
+    //     body: JSON.stringify({
+    //       age: state.age,
+    //       answers: state.answers,
+    //       type: state.typeId,
+    //       ts: new Date().toISOString()
+    //     })
+    //   });
+    // }catch(e){ console.warn('save failed', e); }
+  });
+
+  // シェア（対応ブラウザのみ）
+  document.getElementById('share').addEventListener('click', async () => {
+    const title = '実験用 診断結果';
+    const text = `${$('#result-title').textContent}`;
+    const url = location.href;
+    if (navigator.share) { try { await navigator.share({ title, text, url }); } catch{} }
+    else { alert('共有: ' + text); }
+  });
+</script>
+</body>
+</html>
