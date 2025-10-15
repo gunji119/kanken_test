@@ -2,208 +2,151 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
-<title>実験用｜関心度×満足度 診断</title>
+<title>実験用｜MBTI風診断</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<!-- Chart.js（CDN） -->
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
-        onerror="window.__chartFailed=true"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <style>
-  :root{--fg:#111;--bd:#e5e7eb;--mut:#6b7280}
-  *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-       color:var(--fg);max-width:960px;margin:32px auto;padding:0 16px;line-height:1.65;background:#fff}
-  h1{font-size:28px;margin:0 0 4px}
-  h2{font-size:20px;margin:0 0 8px}
-  p.muted{color:var(--mut);margin:0 0 16px}
-  .card{border:1px solid var(--bd);border-radius:14px;padding:16px;margin:14px 0;background:#fff}
-  .row{display:grid;grid-template-columns:1fr;gap:12px}
-  .factor{border:1px solid var(--bd);border-radius:12px;padding:12px}
-  .fac-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
-  .sliders{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  @media (max-width:640px){ .sliders{grid-template-columns:1fr} }
-  .r{display:flex;align-items:center;gap:8px}
-  input[type=range]{width:100%}
-  .btn{padding:.65rem 1rem;border:1px solid #111;border-radius:12px;background:#fff;cursor:pointer}
-  .btn[disabled]{opacity:.5;cursor:not-allowed}
-  .hidden{display:none}
-  .tips li{margin-left:1rem}
-  .badge{font-size:12px;color:#fff;background:#111;border-radius:999px;padding:2px 8px}
-  .table{width:100%;border-collapse:collapse;margin-top:8px}
-  .table th,.table td{border:1px solid var(--bd);padding:6px 8px;text-align:center}
-  .chart-wrap{min-height:360px}
-  .warn{background:#fff3cd;border:1px solid #ffe69c;color:#664d03;border-radius:10px;padding:10px;margin-top:10px;font-size:14px}
-  .foot{margin-top:20px;font-size:12px;color:var(--mut)}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+     max-width:720px;margin:40px auto;padding:0 20px;line-height:1.6}
+.card{border:1px solid #ddd;border-radius:14px;padding:20px;margin:20px 0}
+button{padding:.6rem 1rem;border:1px solid #111;border-radius:10px;background:#fff;cursor:pointer}
+h1{font-size:26px}
+h2{font-size:20px;margin-top:0}
+.hidden{display:none}
+.choice{display:flex;flex-direction:column;gap:8px;margin-top:20px}
+.scale{display:flex;justify-content:space-between;margin-top:8px}
+.bar{width:100%;height:8px;background:#eee;border-radius:4px;margin-top:20px;overflow:hidden}
+.bar-inner{height:100%;background:#111;width:0%}
+.chart-wrap{height:360px}
+.table{width:100%;border-collapse:collapse;margin-top:10px}
+.table th,.table td{border:1px solid #ddd;padding:6px;text-align:center}
+.badge{background:#111;color:#fff;font-size:12px;border-radius:8px;padding:2px 6px}
 </style>
 </head>
 <body>
-<h1>実験用</h1>
-<p class="muted">因子ごとの<strong>関心度</strong>と<strong>満足度</strong>を入力 → <strong>レーダーチャート</strong>で比較（※読み込み失敗時は表のみ）→ ギャップ大の因子に提案を表示。</p>
+<h1>実験用｜関心×満足 MBTI風診断</h1>
 
-<script>
-  // ===== 設定 =====
-  const FACTORS = ["安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"];
-  const TIPS = {
-    "安全感":["定例・連絡頻度を明文化して予測可能性UP","NG/Doルールを一枚にまとめて共有"],
-    "自由度":["裁量範囲を文章化して可視化","同期作業→非同期タスクへ置換"],
-    "承認":["週1で成果の可視化（スクショ/1分デモ）","『良かった→要望→次回』の順でFB"],
-    "挑戦":["1週間以内で検証できる小実験を積む","失敗の上限（時間/コスト）を先に決める"],
-    "共有時間":["朝5分/週30分の儀式を固定化","雑談はテーマカードで開始を容易に"],
-    "境界線":["応答時間帯・連絡手段・即レス期待を明文化","“断るテンプレ”を全員で持つ"],
-    "役割の明確さ":["RACIを簡易運用して責任範囲を明確化","月1で役割棚卸し"],
-    "遊び":["月1“無目的の会”を設定（否定しない）","創作/ゲーム等の軽い共作をスプリントで"]
-  };
-  const THRESHOLDS = { interestedMin: 4, gapMin: 2 }; // 1〜5段階
-</script>
-
-<section id="form" class="card">
-  <h2>1. 因子ごとの関心度×満足度を入力</h2>
-  <p class="muted">各因子について、1〜5のスライダーで入力してください。</p>
-  <div id="factors" class="row"></div>
-  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-    <button id="analyze" class="btn">分析する</button>
-    <button id="reset" class="btn" type="button">リセット</button>
-  </div>
+<section id="quiz" class="card">
+  <h2 id="qnum"></h2>
+  <p id="qtext"></p>
+  <div class="choice" id="choices"></div>
+  <div class="bar"><div class="bar-inner" id="progress"></div></div>
 </section>
 
 <section id="result" class="card hidden">
-  <h2>2. レーダーチャートとギャップ分析</h2>
-  <div id="chartWarning" class="warn hidden">⚠️ チャートライブラリの読み込みに失敗したため、今回グラフは非表示です（表と提案は表示されます）。</div>
-  <div class="chart-wrap"><canvas id="chart" aria-label="レーダーチャート" role="img"></canvas></div>
-
-  <h3 style="margin-top:16px">ギャップの大きい順</h3>
-  <table class="table" id="gapTable">
-    <thead><tr><th>因子</th><th>関心</th><th>満足</th><th>差(関心-満足)</th></tr></thead>
-    <tbody></tbody>
-  </table>
-
-  <h3 style="margin-top:16px">提案（関心高いのに満足が低い因子） <span class="badge">重点</span></h3>
-  <ul class="tips" id="tipsList"></ul>
-
-  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn" onclick="location.reload()">最初に戻る</button>
-  </div>
+  <h2>診断結果</h2>
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <h3>ギャップの大きい因子</h3>
+  <table class="table"><thead><tr><th>因子</th><th>関心</th><th>満足</th><th>差</th></tr></thead><tbody id="tbl"></tbody></table>
+  <ul id="tips"></ul>
+  <button onclick="location.reload()">もう一度</button>
 </section>
 
-<p class="foot">© 実験用（HTML+JSのみ）</p>
-
 <script>
-  // ===== フォーム生成 =====
-  const container = document.getElementById('factors');
-  FACTORS.forEach((name, idx) => {
-    const id = `f${idx}`;
-    const el = document.createElement('div');
-    el.className = 'factor';
-    el.innerHTML = `
-      <div class="fac-head">
-        <strong>${name}</strong>
-        <span class="muted">1〜5（高いほど強い）</span>
-      </div>
-      <div class="sliders">
-        <label class="r" for="${id}-interest">
-          <span style="min-width:5em">関心度</span>
-          <input id="${id}-interest" type="range" min="1" max="5" step="1" value="3" />
-          <output id="${id}-interest-out">3</output>
-        </label>
-        <label class="r" for="${id}-satisfaction">
-          <span style="min-width:5em">満足度</span>
-          <input id="${id}-satisfaction" type="range" min="1" max="5" step="1" value="3" />
-          <output id="${id}-satisfaction-out">3</output>
-        </label>
-      </div>
-    `;
-    container.appendChild(el);
-    ['interest','satisfaction'].forEach(k=>{
-      const inp = el.querySelector(`#${id}-${k}`);
-      const out = el.querySelector(`#${id}-${k}-out`);
-      inp.addEventListener('input', ()=>{ out.textContent = inp.value; });
-    });
+const FACTORS = ["安全感","自由度","承認","挑戦","共有時間","境界線","役割の明確さ","遊び"];
+const QUESTIONS = [
+  {text:"人との予定が埋まっていると安心する",factor:"安全感",type:"関心"},
+  {text:"誰かが自分を気にかけてくれると落ち着く",factor:"安全感",type:"満足"},
+  {text:"自分のペースで進められる環境が好き",factor:"自由度",type:"関心"},
+  {text:"予定やルールが厳しくても気にならない",factor:"自由度",type:"満足"},
+  {text:"褒められるとやる気が出る",factor:"承認",type:"関心"},
+  {text:"最近周囲から十分に評価されている",factor:"承認",type:"満足"},
+  {text:"新しいことに挑戦するのが好き",factor:"挑戦",type:"関心"},
+  {text:"最近わくわくすることに取り組めている",factor:"挑戦",type:"満足"},
+  {text:"人と同じ時間を共有すると安心する",factor:"共有時間",type:"関心"},
+  {text:"最近、信頼できる人と時間を共有できている",factor:"共有時間",type:"満足"},
+  {text:"人との距離感を大事にしたい",factor:"境界線",type:"関心"},
+  {text:"最近、自分の時間をしっかり守れている",factor:"境界線",type:"満足"},
+  {text:"自分の役割がはっきりしていると動きやすい",factor:"役割の明確さ",type:"関心"},
+  {text:"今の関係や環境で役割が曖昧だと感じる",factor:"役割の明確さ",type:"満足"},
+  {text:"遊びや余白の時間がないと息が詰まる",factor:"遊び",type:"関心"},
+  {text:"最近、気軽に遊ぶ時間をとれている",factor:"遊び",type:"満足"}
+];
+const TIPS = {
+  "安全感":["予測できる予定づくり","関係性ルールを明文化"],
+  "自由度":["裁量を可視化","非同期作業化"],
+  "承認":["週1で成果可視化","FBフォーマット化"],
+  "挑戦":["小実験を積み重ね","失敗の上限を設定"],
+  "共有時間":["短い儀式を定例化","雑談テーマカード"],
+  "境界線":["即レス期待を明文化","断るテンプレを共有"],
+  "役割の明確さ":["RACIで範囲整理","月1棚卸し"],
+  "遊び":["無目的の会","共作スプリント"]
+};
+
+// 状態
+let idx=0;
+let answers=[];
+const quiz=document.getElementById("quiz");
+const qnum=document.getElementById("qnum");
+const qtext=document.getElementById("qtext");
+const choices=document.getElementById("choices");
+const progress=document.getElementById("progress");
+
+const OPTIONS=["全くそう思わない","あまりそう思わない","どちらともいえない","ややそう思う","とてもそう思う"];
+
+function showQuestion(){
+  const q=QUESTIONS[idx];
+  qnum.textContent=`質問 ${idx+1} / ${QUESTIONS.length}`;
+  qtext.textContent=q.text;
+  choices.innerHTML="";
+  OPTIONS.forEach((opt,i)=>{
+    const b=document.createElement("button");
+    b.textContent=`${i+1}. ${opt}`;
+    b.onclick=()=>answer(i+1);
+    choices.appendChild(b);
+  });
+  progress.style.width=`${(idx/QUESTIONS.length)*100}%`;
+}
+
+function answer(val){
+  answers.push(val);
+  idx++;
+  if(idx<QUESTIONS.length){showQuestion();}
+  else{analyze();}
+}
+
+function analyze(){
+  progress.style.width="100%";
+  quiz.classList.add("hidden");
+  document.getElementById("result").classList.remove("hidden");
+  const sums={};
+  FACTORS.forEach(f=>sums[f]={関心:[],満足:[]});
+  QUESTIONS.forEach((q,i)=>{
+    sums[q.factor][q.type].push(answers[i]);
+  });
+  const interest=FACTORS.map(f=>avg(sums[f].関心));
+  const satisfaction=FACTORS.map(f=>avg(sums[f].満足));
+
+  new Chart(document.getElementById("chart"),{
+    type:"radar",
+    data:{labels:FACTORS,
+          datasets:[
+            {label:"関心",data:interest,backgroundColor:"rgba(0,0,0,.1)"},
+            {label:"満足",data:satisfaction,backgroundColor:"rgba(0,0,0,.05)"}
+          ]},
+    options:{responsive:true,scales:{r:{min:0,max:5,ticks:{stepSize:1}}}}
   });
 
-  // リセット
-  document.getElementById('reset').addEventListener('click', ()=>{
-    FACTORS.forEach((_, idx)=>{
-      const i = document.getElementById(`f${idx}-interest`);
-      const s = document.getElementById(`f${idx}-satisfaction`);
-      const io = document.getElementById(`f${idx}-interest-out`);
-      const so = document.getElementById(`f${idx}-satisfaction-out`);
-      i.value = s.value = 3; io.textContent = so.textContent = '3';
-    });
+  const tbody=document.getElementById("tbl");
+  const diffs=FACTORS.map((f,i)=>({f,interest:interest[i],satisfaction:satisfaction[i],gap:interest[i]-satisfaction[i]}))
+                    .sort((a,b)=>b.gap-a.gap);
+  diffs.forEach(d=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${d.f}</td><td>${d.interest.toFixed(1)}</td><td>${d.satisfaction.toFixed(1)}</td><td>${d.gap.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
   });
 
-  // ===== 分析（防御付き） =====
-  let chart;
-  document.getElementById('analyze').addEventListener('click', () => {
-    // 入力取得
-    const interest = [], satisfaction = [];
-    FACTORS.forEach((_, idx) => {
-      const i = Number(document.getElementById(`f${idx}-interest`).value);
-      const s = Number(document.getElementById(`f${idx}-satisfaction`).value);
-      interest.push(i); satisfaction.push(s);
-    });
-
-    // 画面切替
-    document.getElementById('form').classList.add('hidden');
-    document.getElementById('result').classList.remove('hidden');
-
-    // Chart.js が使えない場合でも先へ進む
-    const chartFailed = window.__chartFailed || (typeof window.Chart === 'undefined');
-    if (chartFailed) {
-      document.getElementById('chartWarning').classList.remove('hidden');
-    } else {
-      try {
-        const ctx = document.getElementById('chart');
-        if (chart) chart.destroy();
-        chart = new Chart(ctx, {
-          type: 'radar',
-          data: {
-            labels: FACTORS,
-            datasets: [
-              { label: '関心度', data: interest, fill: true, pointRadius: 3, backgroundColor: 'rgba(0,0,0,0.08)' },
-              { label: '満足度', data: satisfaction, fill: true, pointRadius: 3, backgroundColor: 'rgba(0,0,0,0.03)' }
-            ]
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' }, tooltip: { mode: 'nearest', intersect: false } },
-            scales: { r: { beginAtZero: true, min: 0, max: 5, ticks: { stepSize: 1 },
-                     angleLines: { color: 'rgba(0,0,0,0.08)' }, grid: { color: 'rgba(0,0,0,0.08)' },
-                     pointLabels: { font: { size: 11 } } } },
-            elements: { line: { borderWidth: 2 } }
-          }
-        });
-      } catch (e) {
-        console.warn('Chart draw failed:', e);
-        document.getElementById('chartWarning').classList.remove('hidden');
-      }
-    }
-
-    // ギャップ計算（降順）
-    const rows = FACTORS.map((name, i) => ({
-      name, interest: interest[i], satisfaction: satisfaction[i], gap: (interest[i]-satisfaction[i])
-    })).sort((a,b)=> b.gap - a.gap);
-
-    // テーブル反映
-    const tbody = document.querySelector('#gapTable tbody');
-    tbody.innerHTML = '';
-    rows.forEach(r=>{
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td style="text-align:left">${r.name}</td>
-                      <td>${r.interest}</td><td>${r.satisfaction}</td><td>${r.gap}</td>`;
-      tbody.appendChild(tr);
-    });
-
-    // 提案（関心高い & ギャップ大）
-    const tipsUL = document.getElementById('tipsList');
-    tipsUL.innerHTML = '';
-    rows
-      .filter(r => r.interest >= THRESHOLDS.interestedMin && r.gap >= THRESHOLDS.gapMin)
-      .forEach(r => {
-        const li = document.createElement('li');
-        const tips = TIPS[r.name] || ["（この因子の提案文を追加してください）"];
-        li.innerHTML = `<strong>${r.name}</strong>：<br>${tips.map(t=>`・${t}`).join('<br>')}`;
-        tipsUL.appendChild(li);
-      });
+  const ul=document.getElementById("tips");
+  ul.innerHTML="";
+  diffs.filter(d=>d.interest>=4&&d.gap>=1.5).forEach(d=>{
+    const li=document.createElement("li");
+    li.innerHTML=`<strong>${d.f}</strong>：${(TIPS[d.f]||["提案なし"]).join("・")}`;
+    ul.appendChild(li);
   });
+}
+function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;}
+
+showQuestion();
 </script>
 </body>
 </html>
